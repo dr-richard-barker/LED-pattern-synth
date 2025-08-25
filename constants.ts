@@ -1,4 +1,4 @@
-import type { PredefinedPattern, CellState } from './types';
+import type { PredefinedPattern, PatternCategory, CellState } from './types';
 
 export const CYCLE_DURATION: number = 1440;
 
@@ -9,7 +9,7 @@ const fullGrid = (gridSize: number, color: Partial<CellState>): CellState[] =>
 
 const nightGrid = (gridSize: number) => fullGrid(gridSize, { r: 0, g: 0, b: 0, active: false });
 
-export const PREDEFINED_PATTERNS: PredefinedPattern[] = [
+const PREDEFINED_PATTERNS: PredefinedPattern[] = [
   {
     name: "Leafy Greens (Lettuce/Spinach)",
     description: "Blue-heavy spectrum for compact growth",
@@ -152,7 +152,7 @@ const generateMatrixFrame = (gridSize: number, frame: number): CellState[] => {
     });
 };
 
-export const FUN_BASED_PATTERNS: PredefinedPattern[] = [
+const FUN_BASED_PATTERNS: PredefinedPattern[] = [
   {
     name: "Rainbow Wave",
     description: "A psychedelic diagonal wave of colors.",
@@ -185,14 +185,14 @@ export const FUN_BASED_PATTERNS: PredefinedPattern[] = [
 
 // --- MicroGreen Patterns ---
 
-export const MICROGREEN_PATTERNS: PredefinedPattern[] = [
+const MICROGREEN_PATTERNS: PredefinedPattern[] = [
     {
         name: "Red to Blue Transition",
         description: "Promotes initial stem elongation then shifts to compact, leafy growth.",
         keyframes: (gridSize: number) => [
-            { time: 360, name: "Morning Red", grid: fullGrid(gridSize, { r: 255, g: 50, b: 50 }) },
-            { time: 720, name: "Midday Balanced", grid: fullGrid(gridSize, { r: 150, g: 100, b: 150 }) },
-            { time: 1080, name: "Evening Blue", grid: fullGrid(gridSize, { r: 50, g: 50, b: 255 }) },
+            { time: 360, name: "Morning Red", grid: fullGrid(gridSize, { r: 255, g: 50, b: 50, active: true }) },
+            { time: 720, name: "Midday Balanced", grid: fullGrid(gridSize, { r: 150, g: 100, b: 150, active: true }) },
+            { time: 1080, name: "Evening Blue", grid: fullGrid(gridSize, { r: 50, g: 50, b: 255, active: true }) },
             { time: 1200, name: "Night", grid: nightGrid(gridSize) }
         ]
     },
@@ -200,16 +200,16 @@ export const MICROGREEN_PATTERNS: PredefinedPattern[] = [
         name: "High-Intensity Pulse",
         description: "Experimental high-frequency pulsing to potentially boost growth.",
         keyframes: (gridSize: number) => [
-            { time: 360, name: "Pulse On", grid: fullGrid(gridSize, { r: 255, g: 255, b: 255 }) },
-            { time: 370, name: "Pulse Off", grid: fullGrid(gridSize, { r: 50, g: 0, b: 0 }) },
-            { time: 420, name: "Pulse On", grid: fullGrid(gridSize, { r: 255, g: 255, b: 255 }) },
-            { time: 430, name: "Pulse Off", grid: fullGrid(gridSize, { r: 50, g: 0, b: 0 }) },
-            { time: 480, name: "Pulse On", grid: fullGrid(gridSize, { r: 255, g: 255, b: 255 }) },
-            { time: 490, name: "Pulse Off", grid: fullGrid(gridSize, { r: 50, g: 0, b: 0 }) },
-            { time: 960, name: "Pulse On", grid: fullGrid(gridSize, { r: 255, g: 255, b: 255 }) },
-            { time: 970, name: "Pulse Off", grid: fullGrid(gridSize, { r: 50, g: 0, b: 0 }) },
-            { time: 1020, name: "Pulse On", grid: fullGrid(gridSize, { r: 255, g: 255, b: 255 }) },
-            { time: 1030, name: "Pulse Off", grid: fullGrid(gridSize, { r: 50, g: 0, b: 0 }) },
+            { time: 360, name: "Pulse On", grid: fullGrid(gridSize, { r: 255, g: 255, b: 255, active: true }) },
+            { time: 370, name: "Pulse Off", grid: fullGrid(gridSize, { r: 50, g: 0, b: 0, active: true }) },
+            { time: 420, name: "Pulse On", grid: fullGrid(gridSize, { r: 255, g: 255, b: 255, active: true }) },
+            { time: 430, name: "Pulse Off", grid: fullGrid(gridSize, { r: 50, g: 0, b: 0, active: true }) },
+            { time: 480, name: "Pulse On", grid: fullGrid(gridSize, { r: 255, g: 255, b: 255, active: true }) },
+            { time: 490, name: "Pulse Off", grid: fullGrid(gridSize, { r: 50, g: 0, b: 0, active: true }) },
+            { time: 960, name: "Pulse On", grid: fullGrid(gridSize, { r: 255, g: 255, b: 255, active: true }) },
+            { time: 970, name: "Pulse Off", grid: fullGrid(gridSize, { r: 50, g: 0, b: 0, active: true }) },
+            { time: 1020, name: "Pulse On", grid: fullGrid(gridSize, { r: 255, g: 255, b: 255, active: true }) },
+            { time: 1030, name: "Pulse Off", grid: fullGrid(gridSize, { r: 50, g: 0, b: 0, active: true }) },
             { time: 1140, name: "Lights Off", grid: nightGrid(gridSize) }
         ]
     },
@@ -217,9 +217,9 @@ export const MICROGREEN_PATTERNS: PredefinedPattern[] = [
         name: "Finishing Spectrum (Blue Heavy)",
         description: "A blue-dominant cycle for final days to enhance color and nutrients.",
         keyframes: (gridSize: number) => [
-            { time: 360, name: "Morning Blue", grid: fullGrid(gridSize, { r: 100, g: 100, b: 255 }) },
-            { time: 720, name: "Midday Intense Blue", grid: fullGrid(gridSize, { r: 150, g: 150, b: 255 }) },
-            { time: 1080, name: "Evening Blue", grid: fullGrid(gridSize, { r: 80, g: 80, b: 200 }) },
+            { time: 360, name: "Morning Blue", grid: fullGrid(gridSize, { r: 100, g: 100, b: 255, active: true }) },
+            { time: 720, name: "Midday Intense Blue", grid: fullGrid(gridSize, { r: 150, g: 150, b: 255, active: true }) },
+            { time: 1080, name: "Evening Blue", grid: fullGrid(gridSize, { r: 80, g: 80, b: 200, active: true }) },
             { time: 1200, name: "Night", grid: nightGrid(gridSize) }
         ]
     },
@@ -227,7 +227,7 @@ export const MICROGREEN_PATTERNS: PredefinedPattern[] = [
         name: "Continuous Red",
         description: "Constant red light during the day for stem elongation.",
         keyframes: (gridSize: number) => [
-            { time: 360, name: "Red On", grid: fullGrid(gridSize, { r: 255, g: 0, b: 0 }) },
+            { time: 360, name: "Red On", grid: fullGrid(gridSize, { r: 255, g: 0, b: 0, active: true }) },
             { time: 1200, name: "Night", grid: nightGrid(gridSize) }
         ]
     },
@@ -235,15 +235,15 @@ export const MICROGREEN_PATTERNS: PredefinedPattern[] = [
         name: "Red w/ Slow Blue Pulses",
         description: "Base red light with slow, high-intensity blue pulses.",
         keyframes: (gridSize: number) => [
-            { time: 360, name: "Red Base", grid: fullGrid(gridSize, { r: 200, g: 0, b: 0 }) },
-            { time: 480, name: "Blue Pulse On", grid: fullGrid(gridSize, { r: 200, g: 0, b: 255 }) },
-            { time: 490, name: "Blue Pulse Off", grid: fullGrid(gridSize, { r: 200, g: 0, b: 0 }) },
-            { time: 600, name: "Blue Pulse On", grid: fullGrid(gridSize, { r: 200, g: 0, b: 255 }) },
-            { time: 610, name: "Blue Pulse Off", grid: fullGrid(gridSize, { r: 200, g: 0, b: 0 }) },
-            { time: 840, name: "Blue Pulse On", grid: fullGrid(gridSize, { r: 200, g: 0, b: 255 }) },
-            { time: 850, name: "Blue Pulse Off", grid: fullGrid(gridSize, { r: 200, g: 0, b: 0 }) },
-            { time: 960, name: "Blue Pulse On", grid: fullGrid(gridSize, { r: 200, g: 0, b: 255 }) },
-            { time: 970, name: "Blue Pulse Off", grid: fullGrid(gridSize, { r: 200, g: 0, b: 0 }) },
+            { time: 360, name: "Red Base", grid: fullGrid(gridSize, { r: 200, g: 0, b: 0, active: true }) },
+            { time: 480, name: "Blue Pulse On", grid: fullGrid(gridSize, { r: 200, g: 0, b: 255, active: true }) },
+            { time: 490, name: "Blue Pulse Off", grid: fullGrid(gridSize, { r: 200, g: 0, b: 0, active: true }) },
+            { time: 600, name: "Blue Pulse On", grid: fullGrid(gridSize, { r: 200, g: 0, b: 255, active: true }) },
+            { time: 610, name: "Blue Pulse Off", grid: fullGrid(gridSize, { r: 200, g: 0, b: 0, active: true }) },
+            { time: 840, name: "Blue Pulse On", grid: fullGrid(gridSize, { r: 200, g: 0, b: 255, active: true }) },
+            { time: 850, name: "Blue Pulse Off", grid: fullGrid(gridSize, { r: 200, g: 0, b: 0, active: true }) },
+            { time: 960, name: "Blue Pulse On", grid: fullGrid(gridSize, { r: 200, g: 0, b: 255, active: true }) },
+            { time: 970, name: "Blue Pulse Off", grid: fullGrid(gridSize, { r: 200, g: 0, b: 0, active: true }) },
             { time: 1200, name: "Night", grid: nightGrid(gridSize) }
         ]
     },
@@ -251,10 +251,10 @@ export const MICROGREEN_PATTERNS: PredefinedPattern[] = [
         name: "Red w/ Fast Blue Pulses",
         description: "Base red light with rapid, medium-intensity blue pulses.",
         keyframes: (gridSize: number) => {
-            const kfs: any[] = [{ time: 360, name: "Red Base", grid: fullGrid(gridSize, { r: 150, g: 0, b: 0 }) }];
+            const kfs: any[] = [{ time: 360, name: "Red Base", grid: fullGrid(gridSize, { r: 150, g: 0, b: 0, active: true }) }];
             for (let i = 400; i < 1180; i += 20) {
-                kfs.push({ time: i, name: `Pulse On ${i}`, grid: fullGrid(gridSize, { r: 150, g: 0, b: 180 }) });
-                kfs.push({ time: i + 5, name: `Pulse Off ${i+5}`, grid: fullGrid(gridSize, { r: 150, g: 0, b: 0 }) });
+                kfs.push({ time: i, name: `Pulse On ${i}`, grid: fullGrid(gridSize, { r: 150, g: 0, b: 180, active: true }) });
+                kfs.push({ time: i + 5, name: `Pulse Off ${i+5}`, grid: fullGrid(gridSize, { r: 150, g: 0, b: 0, active: true }) });
             }
             kfs.push({ time: 1200, name: "Night", grid: nightGrid(gridSize) });
             return kfs;
@@ -264,16 +264,34 @@ export const MICROGREEN_PATTERNS: PredefinedPattern[] = [
         name: "Red w/ Varied Blue Pulses",
         description: "Base red light with a mix of high and low intensity blue pulses.",
         keyframes: (gridSize: number) => [
-            { time: 360, name: "Low Red Base", grid: fullGrid(gridSize, { r: 100, g: 0, b: 0 }) },
-            { time: 420, name: "Low Pulse On", grid: fullGrid(gridSize, { r: 100, g: 0, b: 100 }) },
-            { time: 425, name: "Low Pulse Off", grid: fullGrid(gridSize, { r: 100, g: 0, b: 0 }) },
-            { time: 430, name: "Low Pulse On", grid: fullGrid(gridSize, { r: 100, g: 0, b: 100 }) },
-            { time: 435, name: "Low Pulse Off", grid: fullGrid(gridSize, { r: 100, g: 0, b: 0 }) },
-            { time: 720, name: "High Pulse On", grid: fullGrid(gridSize, { r: 100, g: 0, b: 255 }) },
-            { time: 740, name: "High Pulse Off", grid: fullGrid(gridSize, { r: 100, g: 0, b: 0 }) },
-            { time: 900, name: "High Pulse On", grid: fullGrid(gridSize, { r: 100, g: 0, b: 255 }) },
-            { time: 920, name: "High Pulse Off", grid: fullGrid(gridSize, { r: 100, g: 0, b: 0 }) },
+            { time: 360, name: "Low Red Base", grid: fullGrid(gridSize, { r: 100, g: 0, b: 0, active: true }) },
+            { time: 420, name: "Low Pulse On", grid: fullGrid(gridSize, { r: 100, g: 0, b: 100, active: true }) },
+            { time: 425, name: "Low Pulse Off", grid: fullGrid(gridSize, { r: 100, g: 0, b: 0, active: true }) },
+            { time: 430, name: "Low Pulse On", grid: fullGrid(gridSize, { r: 100, g: 0, b: 100, active: true }) },
+            { time: 435, name: "Low Pulse Off", grid: fullGrid(gridSize, { r: 100, g: 0, b: 0, active: true }) },
+            { time: 720, name: "High Pulse On", grid: fullGrid(gridSize, { r: 100, g: 0, b: 255, active: true }) },
+            { time: 740, name: "High Pulse Off", grid: fullGrid(gridSize, { r: 100, g: 0, b: 0, active: true }) },
+            { time: 900, name: "High Pulse On", grid: fullGrid(gridSize, { r: 100, g: 0, b: 255, active: true }) },
+            { time: 920, name: "High Pulse Off", grid: fullGrid(gridSize, { r: 100, g: 0, b: 0, active: true }) },
             { time: 1200, name: "Night", grid: nightGrid(gridSize) }
         ]
     }
+];
+
+export const PATTERN_CATEGORIES: PatternCategory[] = [
+  {
+    name: 'Research-Based',
+    patterns: PREDEFINED_PATTERNS,
+    icon: 'Leaf'
+  },
+  {
+    name: 'Microgreen-Based',
+    patterns: MICROGREEN_PATTERNS,
+    icon: 'Sprout'
+  },
+  {
+    name: 'Fun-Based',
+    patterns: FUN_BASED_PATTERNS,
+    icon: 'Sparkles'
+  }
 ];

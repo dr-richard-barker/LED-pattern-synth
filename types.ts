@@ -1,4 +1,3 @@
-
 export interface CellState {
   r: number;
   g: number;
@@ -23,4 +22,10 @@ export interface PredefinedPattern {
   name: string;
   description: string;
   keyframes: PredefinedPatternKeyframe[] | ((gridSize: number) => PredefinedPatternKeyframe[]);
+}
+
+export interface PatternCategory {
+  name: string;
+  patterns: PredefinedPattern[];
+  icon: string;
 }
