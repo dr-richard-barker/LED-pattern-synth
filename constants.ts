@@ -1,4 +1,4 @@
-import type { PredefinedPattern, PatternCategory, CellState } from './types';
+import type { PredefinedPattern, PatternCategory, CellState, PredefinedPatternKeyframe } from './types';
 
 export const CYCLE_DURATION: number = 1440;
 
@@ -152,6 +152,42 @@ const generateMatrixFrame = (gridSize: number, frame: number): CellState[] => {
     });
 };
 
+const generateEnhancedMatrixFrame = (gridSize: number, frame: number): CellState[] => {
+    return Array.from({ length: gridSize * gridSize }, (_, i) => {
+        const x = i % gridSize;
+        const y = Math.floor(i / gridSize);
+        
+        const columnHash = ((x * 31 + frame) ^ (x * 13)) % 23;
+        const hasRain = columnHash < 12; // Increased density
+
+        if (hasRain) {
+            const speed = 2 + (columnHash % 4); // Faster speeds
+            const tailLength = gridSize / 3 + (columnHash % 4);
+            const dripHead = (frame * speed + x * 7) % (gridSize * 1.5) - (gridSize * 0.25);
+
+            // Head of the drip (brightest)
+            if (y >= dripHead && y < dripHead + 1) {
+                // Occasional extra bright white head
+                return columnHash > 18 ? { r: 220, g: 255, b: 220, active: true } : { r: 180, g: 255, b: 180, active: true };
+            } 
+            // Tail of the drip
+            else if (y > dripHead - tailLength && y < dripHead) {
+                const fade = 1 - ((dripHead - y) / tailLength);
+                const greenValue = Math.floor(50 + 200 * fade);
+                // Slightly vary the green color based on hash
+                const finalGreen = Math.min(255, greenValue + (columnHash % 3) * 10);
+                return { r: 0, g: finalGreen, b: 0, active: true };
+            }
+        }
+        
+        // Dim background, with some flickering
+        const backgroundFlicker = (x*y + frame) % 100 === 0;
+        const backgroundGreen = backgroundFlicker ? 50 : 30;
+
+        return { r: 0, g: backgroundGreen, b: 0, active: true };
+    });
+};
+
 const FUN_BASED_PATTERNS: PredefinedPattern[] = [
   {
     name: "Rainbow Wave",
@@ -180,6 +216,35 @@ const FUN_BASED_PATTERNS: PredefinedPattern[] = [
       { time: 720, name: "Drip 3", grid: generateMatrixFrame(gridSize, 20) },
       { time: 1080, name: "Drip 4", grid: generateMatrixFrame(gridSize, 30) },
     ]
+  },
+  {
+    name: "Enhanced Matrix Rain",
+    description: "Faster, denser digital rain. Optimized for larger grids.",
+    keyframes: (gridSize: number) => [
+      { time: 0, name: "Stream 1", grid: generateEnhancedMatrixFrame(gridSize, 0) },
+      { time: 180, name: "Stream 2", grid: generateEnhancedMatrixFrame(gridSize, 15) },
+      { time: 360, name: "Stream 3", grid: generateEnhancedMatrixFrame(gridSize, 30) },
+      { time: 540, name: "Stream 4", grid: generateEnhancedMatrixFrame(gridSize, 45) },
+      { time: 720, name: "Stream 5", grid: generateEnhancedMatrixFrame(gridSize, 60) },
+      { time: 900, name: "Stream 6", grid: generateEnhancedMatrixFrame(gridSize, 75) },
+      { time: 1080, name: "Stream 7", grid: generateEnhancedMatrixFrame(gridSize, 90) },
+      { time: 1260, name: "Stream 8", grid: generateEnhancedMatrixFrame(gridSize, 105) },
+    ]
+  },
+  {
+    name: "Hyper Matrix Rain",
+    description: "Super-fast, cinematic digital rain. Best at high animation speeds.",
+    keyframes: (gridSize: number) => {
+      const keyframes: PredefinedPatternKeyframe[] = [];
+      for (let i = 0; i < 60; i++) {
+        keyframes.push({
+          time: i,
+          name: `Flow ${i + 1}`,
+          grid: generateEnhancedMatrixFrame(gridSize, i * 5)
+        });
+      }
+      return keyframes;
+    }
   }
 ];
 
