@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Play, Pause, Square, Save, Upload, Plus, Trash2, Copy, RotateCcw, Clock, Sun, Moon, Leaf, Sparkles, ChevronDown, Film, Sprout, BrainCircuit, BarChart2, Info, Maximize, Minimize } from 'lucide-react';
+import { Play, Pause, Square, Save, Upload, Plus, Trash2, Copy, RotateCcw, Clock, Sun, Moon, Leaf, Sparkles, ChevronDown, Film, Sprout, BrainCircuit, BarChart2, Info, Maximize, Minimize, FileCode } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
+import JSZip from 'jszip';
 import type { CellState, Keyframe, PredefinedPattern } from '../types';
 import { CYCLE_DURATION, PATTERN_CATEGORIES } from '../constants';
 
 const ICONS: { [key: string]: React.FC<any> } = { Leaf, Sprout, Sparkles };
 
 const HorticulturalLEDDesigner: React.FC = () => {
-  const [gridSize, setGridSize] = useState(8);
+  const [gridWidth, setGridWidth] = useState(32);
+  const [gridHeight, setGridHeight] = useState(64);
   const [currentGrid, setCurrentGrid] = useState<CellState[]>([]);
   const [selectedCell, setSelectedCell] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -24,7 +26,7 @@ const HorticulturalLEDDesigner: React.FC = () => {
   const [keyframes, setKeyframes] = useState<Keyframe[]>(() => {
     const initialPattern = PATTERN_CATEGORIES[0].patterns[0];
     const kfSource = initialPattern.keyframes;
-    const kfs = typeof kfSource === 'function' ? kfSource(8) : kfSource;
+    const kfs = typeof kfSource === 'function' ? kfSource(32, 64) : kfSource;
     return kfs.map(kf => ({
       ...kf,
       id: Date.now() + Math.random(),
@@ -42,6 +44,7 @@ const HorticulturalLEDDesigner: React.FC = () => {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showKeyframes, setShowKeyframes] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isExportingCode, setIsExportingCode] = useState(false);
 
   // Gemini State
   const [showGemini, setShowGemini] = useState(false);
@@ -91,7 +94,7 @@ const HorticulturalLEDDesigner: React.FC = () => {
         };
     };
 
-    const initialGrid = Array.from({ length: gridSize * gridSize }, (_, index) => {
+    const initialGrid = Array.from({ length: gridWidth * gridHeight }, (_, index) => {
         const prevCell = prevKeyframe.grid[index] || { r: 0, g: 0, b: 0, active: false };
         const nextCell = nextKeyframe.grid[index] || { r: 0, g: 0, b: 0, active: false };
         return interpolateColor(prevCell, nextCell, factor);
@@ -123,16 +126,16 @@ const HorticulturalLEDDesigner: React.FC = () => {
     }));
 
     setCurrentGrid(finalGrid);
-  }, [keyframes, gridSize, greenProgram, redProgram, blueProgram]);
+  }, [keyframes, gridWidth, gridHeight, greenProgram, redProgram, blueProgram]);
 
   // Effect to handle resizing all keyframe grids when gridSize changes
   useEffect(() => {
-    const newSize = gridSize * gridSize;
+    const newSize = gridWidth * gridHeight;
     setKeyframes(prevKeyframes => prevKeyframes.map(kf => ({
         ...kf,
         grid: Array.from({ length: newSize }, (_, i) => kf.grid[i] || { r: 0, g: 0, b: 0, active: false })
     })));
-  }, [gridSize]);
+  }, [gridWidth, gridHeight]);
 
   // Stabilized animation loop using setInterval
   useEffect(() => {
@@ -227,7 +230,7 @@ const HorticulturalLEDDesigner: React.FC = () => {
 
   const loadPattern = useCallback((pattern: PredefinedPattern) => {
      const patternKeyframes = typeof pattern.keyframes === 'function' 
-        ? pattern.keyframes(gridSize)
+        ? pattern.keyframes(gridWidth, gridHeight)
         : pattern.keyframes;
 
      const newKeyframes = patternKeyframes.map((kf: any) => ({
@@ -240,7 +243,7 @@ const HorticulturalLEDDesigner: React.FC = () => {
     const firstTime = newKeyframes.length > 0 ? newKeyframes[0].time : 0;
     setCurrentTime(firstTime);
     updateGridFromTimeline(firstTime); 
-  }, [gridSize, updateGridFromTimeline]);
+  }, [gridWidth, gridHeight, updateGridFromTimeline]);
   
   const handlePatternSelect = (categoryIndex: number, patternIndex: number) => {
     setActivePattern({ categoryIndex, patternIndex });
@@ -297,7 +300,7 @@ const HorticulturalLEDDesigner: React.FC = () => {
 
   const fillAll = () => {
     const adjustedColor = getAdjustedColor(redValue, greenValue, blueValue);
-    const newGrid = Array(gridSize * gridSize).fill(null).map(() => ({ 
+    const newGrid = Array(gridWidth * gridHeight).fill(null).map(() => ({ 
       ...adjustedColor, active: true 
     }));
     setCurrentGrid(newGrid);
@@ -309,7 +312,7 @@ const HorticulturalLEDDesigner: React.FC = () => {
   };
 
   const clearAll = () => {
-    const newGrid = Array(gridSize * gridSize).fill(null).map(() => ({ 
+    const newGrid = Array(gridWidth * gridHeight).fill(null).map(() => ({ 
       r: 0, g: 0, b: 0, active: false 
     }));
     setCurrentGrid(newGrid);
@@ -324,7 +327,7 @@ const HorticulturalLEDDesigner: React.FC = () => {
 
   const saveRecipe = () => {
     const recipe = {
-      metadata: { name: currentPatternName, created: new Date().toISOString(), version: "1.0", gridSize, cycleDuration: CYCLE_DURATION, cycleUnit: "minutes", description: "Custom 24-hour lighting pattern" },
+      metadata: { name: currentPatternName, created: new Date().toISOString(), version: "1.0", gridWidth, gridHeight, cycleDuration: CYCLE_DURATION, cycleUnit: "minutes", description: "Custom 24-hour lighting pattern" },
       keyframes: keyframes.map(kf => ({ id: kf.id, name: kf.name, time: kf.time, timeFormatted: formatTime(kf.time), grid: kf.grid.map(cell => ({ red: cell.r, green: cell.g, blue: cell.b, active: cell.active })) })),
       instructions: { microcontroller: "Compatible with Arduino/Raspberry Pi", notes: "24-hour cycle. Time values in minutes (0-1439). RGB values 0-255. Grid indexed row-major order.", example: "Use keyframe interpolation for smooth transitions between lighting phases." }
     };
@@ -351,7 +354,8 @@ const HorticulturalLEDDesigner: React.FC = () => {
               id: kf.id || Date.now() + Math.random(), name: kf.name, time: kf.time,
               grid: kf.grid.map((cell: any) => ({ r: cell.red, g: cell.green, b: cell.blue, active: cell.active }))
             }));
-            if (recipe.metadata?.gridSize) setGridSize(recipe.metadata.gridSize);
+            if (recipe.metadata?.gridWidth) setGridWidth(recipe.metadata.gridWidth);
+            if (recipe.metadata?.gridHeight) setGridHeight(recipe.metadata.gridHeight);
             setActivePattern({ categoryIndex: 0, patternIndex: -1 }); // Indicate custom recipe
             setKeyframes(loadedKeyframes);
             setSelectedKeyframe(0);
@@ -372,6 +376,9 @@ const HorticulturalLEDDesigner: React.FC = () => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
+
+        canvas.width = 512;
+        canvas.height = Math.round(512 * (gridHeight / gridWidth));
 
         const stream = canvas.captureStream(30); // 30 FPS
         const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
@@ -396,19 +403,19 @@ const HorticulturalLEDDesigner: React.FC = () => {
             const time = i * 2; // Each frame represents 2 minutes
             updateGridFromTimeline(time);
             
-            // Allow state to update and then draw
             await new Promise(resolve => setTimeout(() => {
-                const cellSize = canvas.width / gridSize;
+                const cellWidth = canvas.width / gridWidth;
+                const cellHeight = canvas.height / gridHeight;
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#000';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
                 currentGrid.forEach((cell, index) => {
                     if (cell.active) {
-                        const x = (index % gridSize) * cellSize;
-                        const y = Math.floor(index / gridSize) * cellSize;
+                        const x = (index % gridWidth) * cellWidth;
+                        const y = Math.floor(index / gridWidth) * cellHeight;
                         ctx.fillStyle = `rgb(${cell.r}, ${cell.g}, ${cell.b})`;
-                        ctx.fillRect(x, y, cellSize, cellSize);
+                        ctx.fillRect(x, y, cellWidth, cellHeight);
                     }
                 });
                 setRenderProgress(Math.round((i / totalFrames) * 100));
@@ -417,6 +424,103 @@ const HorticulturalLEDDesigner: React.FC = () => {
         }
 
         recorder.stop();
+    };
+
+    const handleExportCode = async () => {
+      setIsExportingCode(true);
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+        const prompt = `
+          You are an expert C++ programmer specializing in the hzeller/rpi-rgb-led-matrix library for Raspberry Pi. Your task is to generate a set of files to implement a complex, time-based LED lighting recipe on an RGB matrix panel.
+          The recipe is defined by a series of keyframes. The LED panel dimensions are ${gridWidth}x${gridHeight}. The total cycle duration is ${CYCLE_DURATION} minutes.
+          Here is the keyframe data in JSON format:
+          ${JSON.stringify(keyframes.map(kf => ({ time: kf.time, grid: kf.grid.map(c => ({r:c.r, g:c.g, b:c.b, a:c.active})) })))}
+
+          Based on this data, generate three files: 'led_recipe.h', 'led_recipe.cc', and 'README.md'.
+
+          File 1: led_recipe.h (Header File)
+          - Must be self-contained or use standard C++ libraries. It needs to include definitions for 'rgb_matrix::Canvas' and 'rgb_matrix::FrameCanvas'.
+          - Define a 'struct Color' with 'uint8_t r, g, b; bool active;'.
+          - Define a 'struct Keyframe' with 'int time;' and 'std::vector<Color> grid;'.
+          - Define a class 'HorticulturalLEDRecipe'.
+          - The class constructor should take no arguments and initialize the recipe data.
+          - The class should contain a 'private' member: 'std::vector<Keyframe> keyframes_'.
+          - The class should have a 'public' method: 'void InterpolateFrame(int time_in_minutes, rgb_matrix::FrameCanvas *canvas)' which calculates the interpolated colors for the given time and draws them to the provided canvas.
+          - Declare the grid dimensions as constants: 'static const int kMatrixWidth = ${gridWidth};' and 'static const int kMatrixHeight = ${gridHeight};'.
+
+          File 2: led_recipe.cc (Source File)
+          - Implement the 'HorticulturalLEDRecipe' class methods.
+          - In the constructor, populate the 'keyframes_' vector with the provided JSON data. This should be hardcoded into the source file for portability. The grid data should be efficiently stored.
+          - Implement the 'InterpolateFrame' method. The logic should be as follows:
+              1. Find the two keyframes that bracket the 'time_in_minutes'. Handle the wrap-around case where the last keyframe interpolates to the first one.
+              2. Calculate the interpolation factor (a float from 0.0 to 1.0) based on how far the current time is between the two keyframes.
+              3. For each pixel (from 0 to ${gridWidth * gridHeight - 1}):
+                  a. Get the start color from the previous keyframe's grid and the end color from the next keyframe's grid.
+                  b. If the start cell is inactive, the pixel is off. If the end cell is inactive, it fades to off. If both active, linearly interpolate the R, G, and B values.
+                  c. Use 'canvas->SetPixel(x, y, r, g, b)' to draw the pixel.
+
+          File 3: README.md
+          - Provide clear instructions on how to use these files.
+          - Title: "Custom LED Lighting Recipe"
+          - Section "Hardware": Mention that this is for Raspberry Pi with the rpi-rgb-led-matrix library and a SeenGreat RGB matrix adapter board.
+          - Section "Files": Briefly describe 'led_recipe.h' and 'led_recipe.cc'.
+          - Section "Usage":
+              - Explain that the user needs to include 'led_recipe.h' in their main C++ file.
+              - Provide a complete, minimal 'main.cc' example that:
+                  1. Includes necessary headers ('led-matrix.h', 'graphics.h', 'led_recipe.h').
+                  2. Sets up the 'RGBMatrix::Options' and 'RuntimeOptions'.
+                  3. Creates an 'RGBMatrix' object.
+                  4. Creates a 'FrameCanvas' from the matrix.
+                  5. Instantiates the 'HorticulturalLEDRecipe' class.
+                  6. Has a main loop that simulates the 24-hour cycle, calling 'recipe.InterpolateFrame(currentTime, canvas)' and 'matrix->SwapOnVSync(canvas)' for each time step.
+                  7. Shows how to compile the code using the makefile from the library (e.g., 'g++ main.cc led_recipe.cc -o main -I... -L... -lrgbmatrix ...').
+
+          Return a single JSON object with three keys: "headerFile", "sourceFile", and "readmeFile". The value for each key should be a string containing the full content of the corresponding file.
+        `;
+
+        const codeGenSchema = {
+          type: Type.OBJECT,
+          properties: {
+            headerFile: { type: Type.STRING },
+            sourceFile: { type: Type.STRING },
+            readmeFile: { type: Type.STRING }
+          },
+          required: ["headerFile", "sourceFile", "readmeFile"]
+        };
+        
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-pro",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: codeGenSchema,
+            },
+        });
+
+        const { headerFile, sourceFile, readmeFile } = JSON.parse(response.text);
+        
+        const zip = new JSZip();
+        zip.file("led_recipe.h", headerFile);
+        zip.file("led_recipe.cc", sourceFile);
+        zip.file("README.md", readmeFile);
+
+        zip.generateAsync({ type: "blob" }).then(function(content) {
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `led-recipe-${Date.now()}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+      } catch (error) {
+        console.error("Error generating C++ code:", error);
+        alert("Failed to generate code. This may be due to API key issues or a problem with the response. Please check the console for details.");
+      } finally {
+        setIsExportingCode(false);
+      }
     };
 
     const handleGenerateRecipe = async () => {
@@ -489,7 +593,7 @@ const HorticulturalLEDDesigner: React.FC = () => {
                 id: Date.now() + Math.random(),
                 time: kf.time,
                 name: kf.name,
-                grid: Array.from({ length: gridSize * gridSize }, () => ({
+                grid: Array.from({ length: gridWidth * gridHeight }, () => ({
                     r: kf.color.r,
                     g: kf.color.g,
                     b: kf.color.b,
@@ -501,7 +605,7 @@ const HorticulturalLEDDesigner: React.FC = () => {
               newKeyframes[0].time = dayNightCycle.start;
               const lastKf = newKeyframes[newKeyframes.length -1];
               lastKf.time = dayNightCycle.end;
-              lastKf.grid = Array.from({ length: gridSize * gridSize }, () => ({ r: 0, g: 0, b: 0, active: false }));
+              lastKf.grid = Array.from({ length: gridWidth * gridHeight }, () => ({ r: 0, g: 0, b: 0, active: false }));
             }
             
             const newPattern: PredefinedPattern = {
@@ -633,8 +737,17 @@ const HorticulturalLEDDesigner: React.FC = () => {
           </div>
         </div>
       )}
+     {isExportingCode && (
+        <div className="fixed inset-0 bg-black/70 flex flex-col items-center justify-center z-50">
+            <div className="bg-white p-8 rounded-lg shadow-xl text-center">
+                <h3 className="text-2xl font-bold text-gray-800 mb-4">Generating C++ Code...</h3>
+                <p className="text-gray-600 mb-4">Gemini is creating your C++ and README files. This may take a moment.</p>
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-teal-500 mx-auto"></div>
+            </div>
+        </div>
+     )}
     <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 bg-gray-50 min-h-screen">
-       <canvas ref={canvasRef} width="512" height="512" className="hidden"></canvas>
+       <canvas ref={canvasRef} className="hidden"></canvas>
       <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-center mb-6 text-green-700">
           Advanced Horticultural & Creative LED Designer
@@ -654,9 +767,24 @@ const HorticulturalLEDDesigner: React.FC = () => {
                 <div className="flex items-center gap-2"><Clock size={18} className="text-gray-600" /><span className="font-mono text-lg">{formatTime(currentTime)}</span></div>
                 <div className={`flex items-center gap-1 ${timeIndicator.color}`}><TimeIcon size={16} /><span className="text-sm font-medium">{timeIndicator.text}</span></div>
               </div>
-              <div className="mb-4"><label htmlFor="grid-size-slider" className="block text-sm font-medium text-gray-700 mb-2">Grid Size: {gridSize}x{gridSize}</label><input id="grid-size-slider" type="range" min="4" max="36" step="2" value={gridSize} onChange={(e) => setGridSize(parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" /></div>
+               <div className="grid grid-cols-2 gap-4 mb-4 bg-white p-3 rounded-lg">
+                  <div>
+                      <div className="flex justify-between items-center mb-1">
+                          <label htmlFor="grid-width-input" className="block text-sm font-medium text-gray-700">Width:</label>
+                          <input id="grid-width-input" type="number" min="4" max="64" value={gridWidth} onChange={(e) => setGridWidth(parseInt(e.target.value) || 4)} className="w-16 p-1 text-center border rounded" />
+                      </div>
+                      <input id="grid-width-slider" type="range" min="4" max="64" step="2" value={gridWidth} onChange={(e) => setGridWidth(parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                  </div>
+                  <div>
+                      <div className="flex justify-between items-center mb-1">
+                           <label htmlFor="grid-height-input" className="block text-sm font-medium text-gray-700">Height:</label>
+                           <input id="grid-height-input" type="number" min="4" max="64" value={gridHeight} onChange={(e) => setGridHeight(parseInt(e.target.value) || 4)} className="w-16 p-1 text-center border rounded" />
+                      </div>
+                      <input id="grid-height-slider" type="range" min="4" max="64" step="2" value={gridHeight} onChange={(e) => setGridHeight(parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                  </div>
+              </div>
               <div ref={gridContainerRef} className="bg-black p-2 sm:p-3 rounded-lg mb-4">
-                <div className="grid gap-px mx-auto w-full" style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`, aspectRatio: '1' }}>{currentGrid.map((cell, index) => (<button key={index} onClick={() => handleCellClick(index)} className={`rounded-sm border transition-all duration-300 ${ selectedCell === index ? 'border-yellow-400 border-2' : 'border-gray-600/50'} ${cell.active ? 'shadow-lg' : 'opacity-30'}`} style={{ backgroundColor: cell.active ? `rgb(${cell.r}, ${cell.g}, ${cell.b})` : '#1f2937', boxShadow: cell.active ? `0 0 8px rgba(${cell.r}, ${cell.g}, ${cell.b}, 0.5)` : 'none', aspectRatio: '1' }} aria-label={`LED ${index + 1}`} />))}</div>
+                <div className="grid gap-px mx-auto w-full" style={{ gridTemplateColumns: `repeat(${gridWidth}, minmax(0, 1fr))`, aspectRatio: `${gridWidth} / ${gridHeight}` }}>{currentGrid.map((cell, index) => (<button key={index} onClick={() => handleCellClick(index)} className={`rounded-sm border transition-all duration-300 ${ selectedCell === index ? 'border-yellow-400 border-2' : 'border-gray-600/50'} ${cell.active ? 'shadow-lg' : 'opacity-30'}`} style={{ backgroundColor: cell.active ? `rgb(${cell.r}, ${cell.g}, ${cell.b})` : '#1f2937', boxShadow: cell.active ? `0 0 8px rgba(${cell.r}, ${cell.g}, ${cell.b}, 0.5)` : 'none', aspectRatio: '1' }} aria-label={`LED ${index + 1}`} />))}</div>
               </div>
               <div className="flex gap-2 mb-4"><button onClick={fillAll} className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">Fill All</button><button onClick={clearAll} className="flex-1 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm">Clear All</button></div>
               <div className="bg-white p-3 rounded-lg"><h3 className="text-sm font-semibold text-gray-700 mb-2">24-Hour Cycle Control</h3><div className="relative h-6 rounded-full" style={{background: dayNightGradient()}}><input type="range" min="0" max={CYCLE_DURATION -1} value={currentTime} onChange={(e) => setCurrentTime(parseInt(e.target.value))} className="absolute inset-0 w-full h-full bg-transparent appearance-none cursor-pointer" style={{'WebkitAppearance': 'none'}} aria-label="Timeline Scrubber"/></div><div className="flex justify-between text-xs text-gray-600 mt-1"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
@@ -788,19 +916,22 @@ const HorticulturalLEDDesigner: React.FC = () => {
             <button onClick={() => setShowTutorial(!showTutorial)} className="w-full text-left font-semibold text-lg text-gray-700 p-4 bg-gray-100 rounded-lg hover:bg-gray-200 flex justify-between items-center transition-colors"><span>How to Use This Tool</span><ChevronDown className={`transition-transform duration-300 ${showTutorial ? 'rotate-180' : ''}`} /></button>
             {showTutorial && (<div className="mt-2 p-6 bg-white border border-gray-200 rounded-lg text-gray-800 space-y-6">
                     <div><h3 className="text-xl font-bold text-green-700 mb-2">Welcome to the Advanced LED Designer!</h3><p>This tool helps you create and visualize 24-hour lighting recipes for plants or create fun animations for LED matrix panels. You design everything using a timeline with keyframes.</p></div>
-                    <div><h4 className="font-bold text-lg mb-2">1. LED Array Panel</h4><ul className="list-disc list-inside space-y-1 pl-2"><li><strong>Grid Size:</strong> Adjust the slider to set your LED panel dimensions, now up to 36x36.</li><li><strong>Interactive Grid:</strong> Click on any cell in the black grid to turn it on or off with the color from "Spectrum Controls".</li><li><strong>24-Hour Cycle Control:</strong> The main bar shows the current time. Drag its slider to scrub through time. Use the "Lights On" and "Lights Off" sliders below it to visually define your day length on the bar's background.</li></ul></div>
+                    <div><h4 className="font-bold text-lg mb-2">1. LED Array Panel</h4><ul className="list-disc list-inside space-y-1 pl-2"><li><strong>Grid Size:</strong> Use the sliders or number boxes to set your LED panel dimensions (up to 64x64).</li><li><strong>Interactive Grid:</strong> Click on any cell in the black grid to turn it on or off with the color from "Spectrum Controls".</li><li><strong>24-Hour Cycle Control:</strong> The main bar shows the current time. Drag its slider to scrub through time. Use the "Lights On" and "Lights Off" sliders below it to visually define your day length on the bar's background.</li></ul></div>
                     <div><h4 className="font-bold text-lg mb-2">2. Spectrum Controls Panel</h4><ul className="list-disc list-inside space-y-1 pl-2"><li><strong>Pattern Libraries:</strong> Choose from three libraries: "Research-Based" for general horticulture, "Microgreen-Based" for specialized recipes, or "Fun-Based" for creative animations.</li><li><strong>Gemini-Based Generator:</strong> Describe your horticultural goals in plain English, and let AI generate a recipe for you!</li><li><strong>Light Programs:</strong> Check boxes (Red, Green, Blue) to add a non-destructive light overlay during specific times of the day, useful for fine-tuning plant responses.</li><li><strong>Color Sliders:</strong> Use the Red, Green, Blue, and Intensity sliders to select the exact color and brightness you want to apply to the grid.</li></ul></div>
                     <div><h4 className="font-bold text-lg mb-2">3. 24-Hour Timeline Panel</h4><ul className="list-disc list-inside space-y-1 pl-2"><li><strong>Animation Controls:</strong> Play, pause, and stop the simulation. The reset button reloads the currently selected pattern from one of the libraries.</li><li><strong>Keyframes:</strong> This is the core of your design. Each keyframe is a snapshot of the LED grid at a specific time. The app smoothly transitions between them. Use the 'Visible' checkbox to hide/show this list.</li><li><strong>Editing Keyframes:</strong> Click on a keyframe to load it for editing. You can then change its name, adjust its time with the slider, and modify the LED grid in the Array Panel.</li><li><strong>Add Keyframe:</strong> Position the main time slider where you want a new scene, design your grid, and click "Add Keyframe" to save it.</li></ul></div>
-                    <div><h4 className="font-bold text-lg mb-2">4. Global Actions (Bottom)</h4><ul className="list-disc list-inside space-y-1 pl-2"><li><strong>Export/Import:</strong> Save your custom creation as a JSON file, or load a previously saved file.</li><li><strong>Export as Video:</strong> Renders the entire 24-hour animation as a video file for easy sharing.</li></ul></div>
+                    <div><h4 className="font-bold text-lg mb-2">4. Global Actions (Bottom)</h4><ul className="list-disc list-inside space-y-1 pl-2"><li><strong>Export/Import:</strong> Save your custom creation as a JSON file, or load a previously saved file.</li><li><strong>Export as Video:</strong> Renders the entire 24-hour animation as a video file for easy sharing.</li><li><strong>Export C++ Code:</strong> Generates a .zip file with C++ code and instructions to run your recipe on a Raspberry Pi.</li></ul></div>
             </div>)}
         </div>
         
         <div className="mt-8 pt-6 border-t border-gray-200">
             <h2 className="text-xl font-semibold text-center mb-4 text-gray-800">Global Actions</h2>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 flex-wrap">
               <button onClick={saveRecipe} className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 transition-colors"><Save size={18} /> Export Recipe</button>
               <button onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors"><Upload size={18} /> Import Recipe</button>
               <button onClick={handleExportVideo} className="w-full sm:w-auto px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center justify-center gap-2 transition-colors"><Film size={18} /> Export as Video</button>
+              <button onClick={handleExportCode} disabled={isExportingCode} className="w-full sm:w-auto px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 flex items-center justify-center gap-2 transition-colors disabled:bg-teal-400 disabled:cursor-not-allowed">
+                <FileCode size={18} /> {isExportingCode ? 'Generating Code...' : 'Export C++ Code'}
+              </button>
               <input ref={fileInputRef} type="file" accept=".json" onChange={loadRecipe} className="hidden"/>
             </div>
         </div>

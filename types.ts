@@ -21,7 +21,7 @@ export interface PredefinedPatternKeyframe {
 export interface PredefinedPattern {
   name: string;
   description: string;
-  keyframes: PredefinedPatternKeyframe[] | ((gridSize: number) => PredefinedPatternKeyframe[]);
+  keyframes: PredefinedPatternKeyframe[] | ((gridWidth: number, gridHeight: number) => PredefinedPatternKeyframe[]);
 }
 
 export interface PatternCategory {
