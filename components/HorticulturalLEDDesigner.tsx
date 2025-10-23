@@ -430,11 +430,73 @@ const HorticulturalLEDDesigner: React.FC = () => {
       setIsExportingCode(true);
       try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+
+        const base64Encode = (buffer: Uint8Array) => {
+            let binary = '';
+            const len = buffer.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(buffer[i]);
+            }
+            return btoa(binary);
+        };
+
+        const compressGridData = (grid: CellState[]) => {
+            if (!grid || grid.length === 0) return { type: 'empty' };
+            const firstCell = grid[0];
+            const isSolid = grid.every(cell => 
+                cell.r === firstCell.r &&
+                cell.g === firstCell.g &&
+                cell.b === firstCell.b &&
+                cell.active === firstCell.active
+            );
+            if (isSolid) {
+                return {
+                    type: 'solid',
+                    color: { r: firstCell.r, g: firstCell.g, b: firstCell.b, a: firstCell.active }
+                };
+            }
+            const buffer = new Uint8Array(grid.length * 4);
+            grid.forEach((cell, i) => {
+                buffer[i * 4 + 0] = cell.r;
+                buffer[i * 4 + 1] = cell.g;
+                buffer[i * 4 + 2] = cell.b;
+                buffer[i * 4 + 3] = cell.active ? 1 : 0;
+            });
+            return {
+                type: 'base64_rgba',
+                data: base64Encode(buffer)
+            };
+        };
+
+        const MAX_KEYFRAMES_FOR_EXPORT = 60;
+        let keyframesToProcess = [...keyframes];
+
+        if (keyframesToProcess.length > MAX_KEYFRAMES_FOR_EXPORT) {
+            const step = Math.ceil(keyframesToProcess.length / MAX_KEYFRAMES_FOR_EXPORT);
+            keyframesToProcess = keyframesToProcess.filter((_, index) => index % step === 0);
+            if (keyframes.length > 0) {
+                const lastOriginalKeyframe = keyframes[keyframes.length - 1];
+                if (keyframesToProcess.length === 0 || keyframesToProcess[keyframesToProcess.length - 1].id !== lastOriginalKeyframe.id) {
+                    keyframesToProcess.push(lastOriginalKeyframe);
+                }
+            }
+        }
+
+        const compressedKeyframes = keyframesToProcess.map(kf => ({
+            time: kf.time,
+            grid: compressGridData(kf.grid)
+        }));
+
         const prompt = `
           You are an expert C++ programmer specializing in the hzeller/rpi-rgb-led-matrix library for Raspberry Pi. Your task is to generate a set of files to implement a complex, time-based LED lighting recipe on an RGB matrix panel.
           The recipe is defined by a series of keyframes. The LED panel dimensions are ${gridWidth}x${gridHeight}. The total cycle duration is ${CYCLE_DURATION} minutes.
-          Here is the keyframe data in JSON format:
-          ${JSON.stringify(keyframes.map(kf => ({ time: kf.time, grid: kf.grid.map(c => ({r:c.r, g:c.g, b:c.b, a:c.active})) })))}
+
+          Here is the keyframe data in a compressed JSON format:
+          ${JSON.stringify(compressedKeyframes)}
+
+          The keyframe data's 'grid' object has a 'type'.
+          - If 'type' is 'solid', use the provided 'color' object {r, g, b, a} for all pixels. 'a' represents the 'active' state.
+          - If 'type' is 'base64_rgba', the 'data' is a Base64 encoded string. You must decode this string into a byte array where every 4 bytes is one pixel (R, G, B, A). 'A' is 1 for active, 0 for inactive.
 
           Based on this data, generate three files: 'led_recipe.h', 'led_recipe.cc', and 'README.md'.
 
@@ -450,7 +512,10 @@ const HorticulturalLEDDesigner: React.FC = () => {
 
           File 2: led_recipe.cc (Source File)
           - Implement the 'HorticulturalLEDRecipe' class methods.
-          - In the constructor, populate the 'keyframes_' vector with the provided JSON data. This should be hardcoded into the source file for portability. The grid data should be efficiently stored.
+          - In the constructor, populate the 'keyframes_' vector with the provided JSON data. This should be hardcoded into the source file.
+          - You will need to handle the two types of grid data: 'solid' and 'base64_rgba'.
+          - For 'solid' grids, create a std::vector<Color> of the specified color for all pixels.
+          - For 'base64_rgba' grids, you MUST include a C++ Base64 decoding function inside the .cc file. It should be a standard, correct implementation that takes the base64 string and returns a std::vector<uint8_t>. Use this function to parse the string and populate the grid vector.
           - Implement the 'InterpolateFrame' method. The logic should be as follows:
               1. Find the two keyframes that bracket the 'time_in_minutes'. Handle the wrap-around case where the last keyframe interpolates to the first one.
               2. Calculate the interpolation factor (a float from 0.0 to 1.0) based on how far the current time is between the two keyframes.
